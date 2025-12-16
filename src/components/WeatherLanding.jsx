@@ -14,8 +14,48 @@ import {
 } from "react-icons/wi";
 import { FiSearch } from "react-icons/fi";
 
-const WeatherLanding = ({ weatherData, dailyData, onSearch, searchCity, setSearchCity }) => {
+// Static mock data
+const staticWeatherData = {
+  name: "New York",
+  sys: {
+    country: "US",
+    sunrise: Math.floor(Date.now() / 1000) - 21600, // 6 hours ago
+    sunset: Math.floor(Date.now() / 1000) + 21600 // 6 hours from now
+  },
+  main: {
+    temp: 293.15, // 20°C
+    feels_like: 291.15, // 18°C
+    humidity: 65,
+    pressure: 1013
+  },
+  weather: [{
+    main: "Clear",
+    description: "clear sky"
+  }],
+  wind: {
+    speed: 3.5
+  },
+  clouds: {
+    all: 20
+  }
+};
+
+const staticDailyData = [
+  { dt: Math.floor(Date.now() / 1000), main: { temp_min: 288.15, temp_max: 295.15 }, weather: [{ main: "Clear", description: "clear sky" }] },
+  { dt: Math.floor(Date.now() / 1000) + 86400, main: { temp_min: 289.15, temp_max: 296.15 }, weather: [{ main: "Clouds", description: "few clouds" }] },
+  { dt: Math.floor(Date.now() / 1000) + 172800, main: { temp_min: 287.15, temp_max: 294.15 }, weather: [{ main: "Rain", description: "light rain" }] },
+  { dt: Math.floor(Date.now() / 1000) + 259200, main: { temp_min: 290.15, temp_max: 297.15 }, weather: [{ main: "Clear", description: "clear sky" }] },
+  { dt: Math.floor(Date.now() / 1000) + 345600, main: { temp_min: 288.15, temp_max: 295.15 }, weather: [{ main: "Clouds", description: "scattered clouds" }] },
+  { dt: Math.floor(Date.now() / 1000) + 432000, main: { temp_min: 286.15, temp_max: 293.15 }, weather: [{ main: "Rain", description: "moderate rain" }] },
+  { dt: Math.floor(Date.now() / 1000) + 518400, main: { temp_min: 291.15, temp_max: 298.15 }, weather: [{ main: "Clear", description: "clear sky" }] }
+];
+
+const WeatherLanding = ({ weatherData: propWeatherData, dailyData: propDailyData, onSearch, searchCity, setSearchCity }) => {
   const [unit, setUnit] = useState("°C");
+  
+  // Use props if available, otherwise fall back to static data
+  const weatherData = propWeatherData || staticWeatherData;
+  const dailyData = propDailyData || staticDailyData;
 
   const getWeatherIcon = (weatherMain, size = 150) => {
     switch (weatherMain?.toLowerCase()) {
@@ -83,7 +123,7 @@ const WeatherLanding = ({ weatherData, dailyData, onSearch, searchCity, setSearc
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchCity.trim()) {
+    if (searchCity?.trim() && onSearch) {
       onSearch(searchCity.trim());
     }
   };
@@ -109,7 +149,8 @@ const WeatherLanding = ({ weatherData, dailyData, onSearch, searchCity, setSearc
     };
   };
 
-  if (!weatherData) {
+  // Show welcome screen if no weather data (and no static fallback was used)
+  if (!propWeatherData && !weatherData) {
     return (
       <div className="weather-landing-modern">
         <div className="modern-search-container">
@@ -117,8 +158,8 @@ const WeatherLanding = ({ weatherData, dailyData, onSearch, searchCity, setSearc
             <input
               type="text"
               placeholder="Search City"
-              value={searchCity}
-              onChange={(e) => setSearchCity(e.target.value)}
+              value={searchCity || ""}
+              onChange={(e) => setSearchCity?.(e.target.value)}
               className="modern-search-input"
             />
             <button type="button" className="modern-unit-toggle" onClick={() => setUnit(unit === "°C" ? "°F" : "°C")}>
@@ -151,8 +192,8 @@ const WeatherLanding = ({ weatherData, dailyData, onSearch, searchCity, setSearc
         <input
           type="text"
           placeholder="Search City"
-          value={searchCity || name}
-          onChange={(e) => setSearchCity(e.target.value)}
+          value={searchCity || name || ""}
+          onChange={(e) => setSearchCity?.(e.target.value)}
           className="modern-search-input"
         />
         <button type="button" className="modern-unit-toggle" onClick={() => setUnit(unit === "°C" ? "°F" : "°C")}>

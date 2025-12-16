@@ -9,6 +9,11 @@ import WeatherLanding from "./components/WeatherLanding";
 import "./App.css";
 
 function App() {
+  const API_BASE =
+    process.env.REACT_APP_OPENWEATHER_BASE_URL ||
+    "https://api.openweathermap.org/data/2.5";
+  const API_KEY = process.env.REACT_APP_OPENWEATHER_KEY;
+
   const [weatherData, setWeatherData] = useState(null);
   const [hourlyData, setHourlyData] = useState([]);
   const [dailyData, setDailyData] = useState([]);
@@ -70,22 +75,42 @@ function App() {
         return;
       }
 
-      console.log("🔍 Searching for city:", trimmed);
-      
-      // Let backend handle encoding
-      const res = await axios.get(
-        `http://localhost:5000/weather/${encodeURIComponent(trimmed)}`,
-        {
-          timeout: 10000 // 10 second timeout
-        }
-      );
+      if (!API_KEY) {
+        alert(
+          "Missing OpenWeather API key. Add REACT_APP_OPENWEATHER_KEY in your Netlify environment variables or a local .env file."
+        );
+        return;
+      }
 
-      console.log("✅ Weather data received:", res.data);
-      
-      setWeatherData(res.data.current);
-      setHourlyData(res.data.hourly);
-      setDailyData(res.data.daily);
-      notifyExtremeWeather(res.data.current);
+      console.log("🔍 Searching for city:", trimmed);
+
+      const encodedCity = encodeURIComponent(trimmed);
+      const weatherUrl = `${API_BASE}/weather?q=${encodedCity}&appid=${API_KEY}`;
+      const forecastUrl = `${API_BASE}/forecast?q=${encodedCity}&appid=${API_KEY}`;
+
+      const [currentRes, forecastRes] = await Promise.all([
+        axios.get(weatherUrl, { timeout: 10000 }),
+        axios.get(forecastUrl, { timeout: 10000 }),
+      ]);
+
+      const hourly = forecastRes.data.list.slice(0, 8); // next 24 hours (3h steps)
+      const daily = [];
+      for (let i = 0; i < forecastRes.data.list.length; i += 8) {
+        daily.push(forecastRes.data.list[i]);
+      }
+
+      const merged = {
+        current: currentRes.data,
+        hourly,
+        daily,
+      };
+
+      console.log("✅ Weather data received:", merged);
+
+      setWeatherData(merged.current);
+      setHourlyData(merged.hourly);
+      setDailyData(merged.daily);
+      notifyExtremeWeather(merged.current);
     } catch (error) {
       console.error("❌ Fetch weather error:", error);
       console.error("Error details:", {
@@ -96,13 +121,13 @@ function App() {
       });
       
       if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || error.code === 'ERR_NETWORK') {
-        alert("Cannot connect to backend server. Please make sure the backend is running on port 5000.\n\nRun: cd weather-backend && npm start");
+        alert("Network error. Please check your connection and try again.");
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
         alert("Request timed out. Please check your internet connection.");
       } else if (error.response) {
         const message = error.response.data?.message || "City not found!";
         const status = error.response.status;
-        alert(`Error (${status}): ${message}\n\nPlease check:\n- City name is spelled correctly\n- Backend server is running\n- Check browser console for details`);
+        alert(`Error (${status}): ${message}\n\nPlease check:\n- City name is spelled correctly\n- API key is valid\n- Check browser console for details`);
       } else {
         alert(`Error: ${error.message || "City not found!"}\n\nPlease check your internet connection and try again.`);
       }
